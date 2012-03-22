@@ -80,7 +80,7 @@ int main(void) {
 
     char *key = "foo";
     char *ip = "127.0.0.1";
-    pthread_t thread = start_pacer(ip, 9000, key, 2, 10);
+    pthread_t thread = start_pacer(ip, 6379, key, 2, 10);
 
     printf("MAIN: sleep(5)\n");
     sleep(5);

@@ -14,7 +14,7 @@ heartbeat.dylib: heartbeat.o heartbeat_wrap.o
 	gcc $(LDDLFLAGS) heartbeat.o heartbeat_wrap.o -o heartbeat.dylib
 
 run: heartbeat.dylib heartbeat.pm
-	perl -I vendor/hiredis -e 'use heartbeat; my $$thread = heartbeat::start_pacer('127.0.0.1', 9000, "bar", 1, 10); for (1..3) { print "MAIN: DO STUFF $_\n"; sleep(1); }; heartbeat::stop_pacer($$thread);'
+	perl -I vendor/hiredis -e 'use heartbeat; my $$thread = heartbeat::start_pacer('127.0.0.1', 6379, "bar", 1, 10); for (1..3) { print "MAIN: DO STUFF $_\n"; sleep(1); }; heartbeat::stop_pacer($$thread);'
 
 hiredis:
 	cd vendor/hiredis && make
