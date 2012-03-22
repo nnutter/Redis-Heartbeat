@@ -1,28 +1,39 @@
 CCFLAGS   = -Ivendor/hiredis `perl -MConfig -e 'print join(" ", @Config{qw(ccflags optimize cccdlflags)}, "-I$$Config{archlib}/CORE")'`
-LDDLFLAGS = -lpthread -Lvendor/hiredis -lhiredis `perl -MConfig -e 'print $$Config{lddlflags}'`
-MAIN_LDDLFLAGS = -lpthread -Lvendor/hiredis -lhiredis
+MAIN_LDDLFLAGS = -Wl,-rpath,vendor/hiredis,-rpath,. -L. -lpthread -Lvendor/hiredis -lhiredis
+LDDLFLAGS = $(MAIN_LDDLFLAGS) `perl -MConfig -e 'print $$Config{lddlflags}'`
 
-all: heartbeat.dylib
+PRODUCT                    = heartbeat
+SWIG_WRAP                  = $(PRODUCT)_wrap
+DYLIB_NAME                 = $(PRODUCT).so
+HIREDIS_DYLIB_NAME         = libhiredis.so
+HIREDIS_DYLIB_INSTALL_NAME = libhiredis.so.0.10
 
-heartbeat_wrap.c heartbeat.pm:
-	swig -perl5 heartbeat.i
+uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
+ifeq ($(uname_S),Darwin)
+	DYLIB_NAME                 = $(PRODUCT).dylib
+	HIREDIS_DYLIB_NAME         = libhiredis.dylib
+	HIREDIS_DYLIB_INSTALL_NAME = libhiredis.0.10.dylib
+endif
 
-heartbeat.o heartbeat_wrap.o: heartbeat_wrap.c
-	gcc -c $(CCFLAGS) heartbeat.c heartbeat_wrap.c
+all: $(DYLIB_NAME)
 
-heartbeat.dylib: heartbeat.o heartbeat_wrap.o
-	gcc $(LDDLFLAGS) heartbeat.o heartbeat_wrap.o -o heartbeat.dylib
+$(SWIG_WRAP).c $(PRODUCT).pm:
+	swig -perl5 $(PRODUCT).i
 
-run: heartbeat.dylib heartbeat.pm
-	perl -I vendor/hiredis -e 'use heartbeat; my $$thread = heartbeat::start_pacer('127.0.0.1', 6379, "bar", 1, 10); for (1..3) { print "MAIN: DO STUFF $_\n"; sleep(1); }; heartbeat::stop_pacer($$thread);'
+$(PRODUCT).o $(SWIG_WRAP).o: $(SWIG_WRAP).c
+	gcc -c $(CCFLAGS) $(PRODUCT).c $(SWIG_WRAP).c
 
-hiredis:
-	cd vendor/hiredis && make
+$(DYLIB_NAME): $(PRODUCT).o $(SWIG_WRAP).o
+	gcc $(PRODUCT).o $(SWIG_WRAP).o -o $(DYLIB_NAME) $(LDDLFLAGS)
 
-main:
-	gcc $(CCFLAGS) $(MAIN_LDDLFLAGS) -o heartbeat heartbeat.c
-	install_name_tool -add_rpath vendor/hiredis heartbeat
-	cd vendor/hiredis && ln -sf libhiredis.dylib libhiredis.0.10.dylib
+run: $(DYLIB_NAME) $(PRODUCT).pm
+	perl -I vendor/hiredis -e 'use $(PRODUCT); my $$thread = $(PRODUCT)::start_pacer("127.0.0.1", 6379, "bar", 1, 10); for (1..3) { print "MAIN: DO STUFF $_\n"; sleep(1); }; $(PRODUCT)::stop_pacer($$thread);'
+
+$(HIREDIS_DYLIB_NAME):
+	cd vendor/hiredis && make && ln -sf $(HIREDIS_DYLIB_NAME) $(HIREDIS_DYLIB_INSTALL_NAME)
+
+$(PRODUCT): $(HIREDIS_DYLIB_NAME)
+	gcc $(CCFLAGS) -o $(PRODUCT) $(PRODUCT).c $(MAIN_LDDLFLAGS)
 
 clean:
-	rm -f heartbeat_wrap.c heartbeat.o heartbeat.dylib heartbeat.pm heartbeat_wrap.o heartbeat
+	rm -f $(SWIG_WRAP).c $(PRODUCT).o $(DYLIB_NAME) $(PRODUCT).pm $(SWIG_WRAP).o $(PRODUCT)
