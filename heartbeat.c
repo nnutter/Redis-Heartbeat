@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <unistd.h> // sleep
 
-#include "vendor/hiredis/hiredis.h"
+#include "hiredis.h"
 
 typedef struct {
     char *ip;
