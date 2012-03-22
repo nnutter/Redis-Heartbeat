@@ -10,7 +10,7 @@ ifeq ($(uname_S),Darwin)
 	HIREDIS_LD_FLAGS = -L/usr/local/lib -lhiredis
 endif
 
-CCFLAGS            = -Ivendor/hiredis `perl -MConfig -e 'print join(" ", @Config{qw(ccflags optimize cccdlflags)}, "-I$$Config{archlib}/CORE")'`
+CCFLAGS            = `perl -MConfig -e 'print join(" ", @Config{qw(ccflags optimize cccdlflags)}, "-I$$Config{archlib}/CORE")'`
 HEARTBEAT_LD_FLAGS = -Wl,-rpath,. -L. -lpthread
 SWIG_LD_FLAGS      = $(HEARTBEAT_LD_FLAGS) `perl -MConfig -e 'print $$Config{lddlflags}'`
 SWIG_WRAP          = $(PRODUCT)_wrap
