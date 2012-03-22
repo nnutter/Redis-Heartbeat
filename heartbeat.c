@@ -91,6 +91,7 @@ pthread_t start_pacer(char *ip, int port, char *key, int refresh_interval, int t
     int rc;
 
     thread_info_t *thread_info = (thread_info_t *) malloc(sizeof(thread_info_t));
+    // TODO Ensure thread_info was created.
     thread_info->ip               = ip;
     thread_info->port             = port;
     thread_info->key              = key;
