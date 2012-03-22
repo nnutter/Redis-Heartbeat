@@ -38,13 +38,42 @@ void *pace(void *arg) {
         printf("THREAD: PULSE\n");
 
         //  renew the expiration on the key
-        void *reply = redisCommand(context, "EXPIRE %s %d", key, timeout);
+        redisReply *reply = redisCommand(context, "EXPIRE %s %d", key, timeout);
 
         if (NULL == reply) {
             printf("THREAD: Error: %s\n", context->errstr);
             freeReplyObject(reply);
             redisFree(context);
-            exit(200);
+            exit(2);
+        }
+        switch(reply->type) {
+            case REDIS_REPLY_STATUS:
+                printf("THREAD: REDIS_REPLY_STATUS\n");
+                break;
+            case REDIS_REPLY_ERROR:
+                printf("THREAD: REDIS_REPLY_ERROR\n");
+                break;
+            case REDIS_REPLY_INTEGER:
+                printf("THREAD: REDIS_REPLY_INTEGER = %lld\n", (long long) reply->integer);
+                if (0 == reply->integer) {
+                    printf("THREAD: ERROR: Failed to set new expiration on '%s'.\n", key);
+                    freeReplyObject(reply);
+                    redisFree(context);
+                    exit(3);
+                }
+                break;
+            case REDIS_REPLY_NIL:
+                printf("THREAD: REDIS_REPLY_NIL\n");
+                break;
+            case REDIS_REPLY_STRING:
+                printf("THREAD: REDIS_REPLY_STRING\n");
+                break;
+            case REDIS_REPLY_ARRAY:
+                printf("THREAD: REDIS_REPLY_ARRAY\n");
+                break;
+            default:
+                printf("THREAD: DEFAULT\n");
+                break;
         }
 
         sleep(thread_info->refresh_interval);
