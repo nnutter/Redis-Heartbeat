@@ -18,6 +18,9 @@ void *pace(void *arg) {
     char *key = thread_info->key;
     free((void *)thread_info);
 
+    // open a connection to redis
+    // exit if failure
+
     while (1) {
         printf("THREAD: key => %s, refresh_interval => %d\n", key, refresh_interval);
 
@@ -58,11 +61,10 @@ int main(void) {
     char *key = "foo";
     pthread_t thread = start_pacer(key, 2);
 
-    printf("MAIN: sleep(3)\n");
+    printf("MAIN: sleep(5)\n");
     sleep(5);
 
     printf("MAIN: cancelling thread\n");
-    // Need to implement a cancel method that also frees struct?
     rc = stop_pacer(thread);
     assert(0 == rc);
 
