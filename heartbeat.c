@@ -57,6 +57,7 @@ void *pace(void *arg) {
         stop();
     }
 
+	pthread_mutex_lock(&pacing_mutex);
     while (pacing) {
         DEBUGPRINT("THREAD: PULSE %d.\n", *((int *) pthread_self()));
 
@@ -116,20 +117,39 @@ void *pace(void *arg) {
     }
 
     DEBUGPRINT("THREAD: Exiting %d.\n", *((int *) pthread_self()));
+    pthread_mutex_unlock(&pacing_mutex);
     pthread_exit(NULL);
 
     return NULL;
 }
 
 int stop_pacer(pthread_t thread) {
+    int rc;
+    struct timeval now;
+    struct timespec wait_until;
+
     pthread_mutex_lock(&pacing_mutex);
     pacing = 0;
     pthread_mutex_unlock(&pacing_mutex);
     pthread_cond_broadcast(&pacing_cond);
     DEBUGPRINT("MAIN: JOIN %d.\n", *((int *) thread));
-    return 0;
+//    return 0;
     // join locked up process not sure why
-    return pthread_join(thread, NULL);
+        gettimeofday(&now, NULL);
+        wait_until.tv_sec  = now.tv_sec + 10;
+        wait_until.tv_nsec = now.tv_usec * 1000;
+    rc = pthread_timedjoin_np(thread, NULL, &wait_until);
+	switch (rc) {
+		case 0:
+			break;
+		case ETIMEDOUT:
+			DEBUGPRINT("MAIN: pthread_join timed out\n");
+			break;
+		default:
+			DEBUGPRINT("MAIN: ERROR: %s!\n", strerror(rc));
+			break;
+	}
+	return rc;
 }
 
 pthread_t start_pacer(char *ip, int port, char *key, int refresh_interval, int timeout) {
