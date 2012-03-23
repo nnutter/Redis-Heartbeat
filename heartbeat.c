@@ -105,6 +105,8 @@ void *pace(void *arg) {
         }
     }
 
+    DEBUGPRINT("THREAD: Exiting.\n");
+
     return NULL;
 }
 
@@ -141,7 +143,6 @@ int main(void) {
     char *key = "foo";
     char *ip = "127.0.0.1";
     pthread_t thread = start_pacer(ip, 6379, key, 2, 10);
-    assert(NULL != thread);
 
     DEBUGPRINT("MAIN: sleep(5)\n");
     sleep(5);
