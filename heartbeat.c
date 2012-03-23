@@ -58,7 +58,7 @@ void *pace(void *arg) {
     }
 
     while (pacing) {
-        DEBUGPRINT("THREAD: PULSE\n");
+        DEBUGPRINT("THREAD: PULSE %d.\n", *((int *) pthread_self()));
 
         //  renew the expiration on the key
         redisReply *reply = redisCommand(context, "EXPIRE %s %d", key, timeout);
@@ -115,7 +115,7 @@ void *pace(void *arg) {
         }
     }
 
-    DEBUGPRINT("THREAD: Exiting.\n");
+    DEBUGPRINT("THREAD: Exiting %d.\n", *((int *) pthread_self()));
     pthread_exit(NULL);
 
     return NULL;
@@ -126,6 +126,7 @@ int stop_pacer(pthread_t thread) {
     pacing = 0;
     pthread_mutex_unlock(&pacing_mutex);
     pthread_cond_broadcast(&pacing_cond);
+    DEBUGPRINT("MAIN: JOIN %d.\n", *((int *) thread));
     return 0;
     // join locked up process not sure why
     return pthread_join(thread, NULL);
