@@ -106,6 +106,7 @@ void *pace(void *arg) {
     }
 
     DEBUGPRINT("THREAD: Exiting.\n");
+    pthread_exit(NULL);
 
     return NULL;
 }
@@ -115,6 +116,8 @@ int stop_pacer(pthread_t thread) {
     pacing = 0;
     pthread_mutex_unlock(&pacing_mutex);
     pthread_cond_broadcast(&pacing_cond);
+    return 0;
+    // join locked up process not sure why
     return pthread_join(thread, NULL);
 }
 
