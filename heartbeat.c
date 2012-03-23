@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <unistd.h> // sleep
 #include <errno.h>
+#include <signal.h>
 
 #include "hiredis/hiredis.h"
 
@@ -22,6 +23,15 @@ typedef struct {
 pthread_mutex_t pacing_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t pacing_cond = PTHREAD_COND_INITIALIZER;
 int pacing = 1;
+
+void stop() {
+    if(0 == raise(SIGTERM)) {
+        pthread_exit(NULL);
+    } else {
+        DEBUGPRINT("THREAD: ERROR: EXIT\n");
+        exit(255);
+    }
+}
 
 void *pace(void *arg) {
     thread_info_t *thread_info = (thread_info_t *) arg;
@@ -43,7 +53,8 @@ void *pace(void *arg) {
     if (context->err) {
         DEBUGPRINT("THREAD: Error: %s\n", context->errstr);
         redisFree(context);
-        exit(1);
+        DEBUGPRINT("THREAD: Freed context\n");
+        stop();
     }
 
     while (pacing) {
@@ -54,9 +65,8 @@ void *pace(void *arg) {
 
         if (NULL == reply) {
             DEBUGPRINT("THREAD: Error: %s\n", context->errstr);
-            freeReplyObject(reply);
             redisFree(context);
-            exit(2);
+            stop();
         }
         switch(reply->type) {
             case REDIS_REPLY_STATUS:
@@ -71,7 +81,7 @@ void *pace(void *arg) {
                     DEBUGPRINT("THREAD: ERROR: Failed to set new expiration on '%s'.\n", key);
                     freeReplyObject(reply);
                     redisFree(context);
-                    exit(3);
+                    stop();
                 }
                 break;
             case REDIS_REPLY_NIL:
