@@ -7,6 +7,7 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h> // sleep
+#include <errno.h>
 
 #include "hiredis/hiredis.h"
 
@@ -18,6 +19,10 @@ typedef struct {
     int timeout;
 } thread_info_t;
 
+pthread_mutex_t pacing_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t pacing_cond = PTHREAD_COND_INITIALIZER;
+int pacing = 1;
+
 void *pace(void *arg) {
     thread_info_t *thread_info = (thread_info_t *) arg;
 
@@ -26,6 +31,10 @@ void *pace(void *arg) {
     char *key            = thread_info->key;
     int refresh_interval = thread_info->refresh_interval;
     int timeout          = thread_info->timeout;
+
+    int rc;
+    struct timeval now;
+    struct timespec wait_until;
 
     free((void *)thread_info);
     DEBUGPRINT("THREAD: thread_info:\n\tip => %s\n\tport => %d\n\tkey => %s\n\trefresh_interval => %d\n\ttimeout => %d\n", ip, port, key, refresh_interval, timeout);
@@ -37,7 +46,7 @@ void *pace(void *arg) {
         exit(1);
     }
 
-    while (1) {
+    while (pacing) {
         DEBUGPRINT("THREAD: PULSE\n");
 
         //  renew the expiration on the key
@@ -79,14 +88,32 @@ void *pace(void *arg) {
                 break;
         }
 
-        sleep(thread_info->refresh_interval);
+        gettimeofday(&now, NULL);
+        wait_until.tv_sec  = now.tv_sec + refresh_interval;
+        wait_until.tv_nsec = now.tv_usec * 1000;
+        rc = pthread_cond_timedwait(&pacing_cond, &pacing_mutex, &wait_until);
+        switch(rc) {
+            case ETIMEDOUT:
+                DEBUGPRINT("THREAD: pacing_cond timed out\n");
+                break;
+            case 0:
+                DEBUGPRINT("THREAD: pacing_cond succeeded\n");
+                break;
+            default:
+                DEBUGPRINT("THREAD: ERROR: %s!\n", strerror(rc));
+                break;
+        }
     }
 
     return NULL;
 }
 
 int stop_pacer(pthread_t thread) {
-    return pthread_cancel(thread);
+    pthread_mutex_lock(&pacing_mutex);
+    pacing = 0;
+    pthread_mutex_unlock(&pacing_mutex);
+    pthread_cond_broadcast(&pacing_cond);
+    return pthread_join(thread, NULL);
 }
 
 pthread_t start_pacer(char *ip, int port, char *key, int refresh_interval, int timeout) {
